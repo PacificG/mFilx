@@ -1,1 +1,4 @@
 __pycache__/
+mflix_venv/
+.cache/
+*.pyc
