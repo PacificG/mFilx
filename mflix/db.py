@@ -264,11 +264,25 @@ def get_movie(id):
         # TODO: Get Comments
         # Implement the required pipeline.
         pipeline = [
-            {
-                "$match": {
-                    "_id": ObjectId(id)
+{
+            "$match": {
+                "_id": ObjectId(id)
+            }},
+    {
+                '$lookup': {
+                'from':'comments',
+                'localField': '_id',
+                'foreignField':'movie_id',
+                'as': 'comments'
+
                 }
-            }
+            },
+
+
+
+    {"$sort": {'date': -1}}
+
+
         ]
 
         movie = db.movies.aggregate(pipeline).next()
@@ -329,7 +343,13 @@ def add_comment(movie_id, user, comment, date):
     """
     # TODO: Create/Update Comments
     # Construct the comment document to be inserted into MongoDB.
-    comment_doc = { "some_field": "some_value" }
+
+    comment_doc = { "_id": ObjectId(),
+                    "name": user.name,
+                    "email": user.email,
+                    "movie_id": ObjectId(movie_id),
+                    'text':comment,
+                    "date":date}
     return db.comments.insert_one(comment_doc)
 
 
@@ -343,8 +363,11 @@ def update_comment(comment_id, user_email, text, date):
     # Use the user_email and comment_id to select the proper comment, then
     # update the "text" and "date" of the selected comment.
     response = db.comments.update_one(
-        { "some_field": "some_value" },
-        { "$set": { "some_other_field": "some_other_value" } }
+        { "email": user_email,
+            "_id": ObjectId(comment_id)},
+        { "$set": { "text": text,
+                    "date": date}},
+                    upsert=False
     )
 
     return response
@@ -365,7 +388,7 @@ def delete_comment(comment_id, user_email):
 
     # TODO: Delete Comments
     # Use the user_email and comment_id to delete the proper comment.
-    response = db.comments.delete_one( { "_id": ObjectId(comment_id) } )
+    response = db.comments.delete_one( { "_id": ObjectId(comment_id), 'email':user_email })
     return response
 
 
@@ -417,7 +440,7 @@ def add_user(name, email, hashedpw):
             "name": name,
             "email": email,
             "password": hashedpw
-        })
+        }, {WriteConcern:2})
         return {"success": True}
     except DuplicateKeyError:
         return {"error": "A user with the given email already exists."}
@@ -510,7 +533,7 @@ def update_prefs(email, prefs):
         # Use the data in "prefs" to update the user's preferences.
         response = db.users.update_one(
             { "email": email },
-            { "$set": { "prefs": prefs } }
+            { "$set": { "preferences": prefs } }
         )
         if response.matched_count == 0:
             return {'error': 'no user found'}
